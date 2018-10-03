@@ -4,7 +4,7 @@ path_original = './OriginalTestData';
 dataset  = {'Set5'};
 ext = {'*.jpg', '*.png', '*.bmp'};
 
-degradation = 'BI'; % BI, BD, DN
+degradation = 'BD'; % BI, BD, DN
 if strcmp(degradation, 'BI') 
     scale_all = [2,3,4,8];
 else
