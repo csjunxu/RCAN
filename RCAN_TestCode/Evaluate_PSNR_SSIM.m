@@ -25,7 +25,7 @@ for idx_method = 1:num_method
         fprintf(results, 'Method_%d: %s; Set: %s\n', idx_method, methods{idx_method}, dataset{idx_set});
         fprintf('**********************\n');
         fprintf('Method_%d: %s; Set: %s\n', idx_method, methods{idx_method}, dataset{idx_set});
-        for scale = scale_all
+        for scale = 2 %scale_all
             filepaths = [];
             for idx_ext = 1:length(ext)
                 filepaths = cat(1, filepaths, dir(fullfile('./HR', dataset{idx_set}, ['x', num2str(scale)], ext{idx_ext})));
