@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="4f0430ba-0b7a-407c-b165-ef2f46ec7c9c" name="Default Changelist" comment="" />
+    <list default="true" id="4f0430ba-0b7a-407c-b165-ef2f46ec7c9c" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/RCAN_TestCode/code/.option.py.swo" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/RCAN_TestCode/code/.option.py.swp" beforeDir="false" afterPath="$PROJECT_DIR$/RCAN_TestCode/code/.option.py.swp" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,11 +39,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/RCAN_TrainCode/code/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="419">
-              <caret line="20" lean-forward="true" selection-start-line="20" selection-end-line="20" />
-              <folding>
-                <element signature="e#0#12#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="62">
+              <caret line="3" column="11" lean-forward="true" selection-start-line="3" selection-start-column="11" selection-end-line="3" selection-end-column="11" />
             </state>
           </provider>
         </entry>
@@ -164,11 +164,8 @@
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/RCAN_TrainCode/code/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="419">
-          <caret line="20" lean-forward="true" selection-start-line="20" selection-end-line="20" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="62">
+          <caret line="3" column="11" lean-forward="true" selection-start-line="3" selection-start-column="11" selection-end-line="3" selection-end-column="11" />
         </state>
       </provider>
     </entry>
