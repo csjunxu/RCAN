@@ -24,6 +24,24 @@ class CALayer(nn.Module):
         y = self.conv_du(y)
         return x * y
 
+class CALayer2(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(CALayer2, self).__init__()
+        # global average pooling: feature --> point
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # feature channel downscale and upscale --> channel weight
+        self.fc = nn.Sequential(
+                nn.linear(channel, channel // reduction),
+                nn.ReLU(inplace=True),
+                nn.linear(channel // reduction, channel),
+                nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        y = self.avg_pool(x)
+        y = self.fc(y)
+        return x * y
+
 ## Residual Channel Attention Block (RCAB)
 class RCAB(nn.Module):
     def __init__(
@@ -36,7 +54,7 @@ class RCAB(nn.Module):
             modules_body.append(conv(n_feat, n_feat, kernel_size, bias=bias))
             if bn: modules_body.append(nn.BatchNorm2d(n_feat))
             if i == 0: modules_body.append(act)
-        modules_body.append(CALayer(n_feat, reduction))
+        modules_body.append(CALayer2(n_feat, reduction))
         self.body = nn.Sequential(*modules_body)
         self.res_scale = res_scale
 
