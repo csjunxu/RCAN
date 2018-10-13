@@ -31,9 +31,9 @@ class CALayer2(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         # feature channel downscale and upscale --> channel weight
         self.fc = nn.Sequential(
-                nn.linear(channel, channel // reduction),
+                nn.Linear(channel, channel // reduction),
                 nn.ReLU(inplace=True),
-                nn.linear(channel // reduction, channel),
+                nn.Linear(channel // reduction, channel),
                 nn.Sigmoid()
         )
 
