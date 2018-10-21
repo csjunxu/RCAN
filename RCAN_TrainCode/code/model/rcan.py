@@ -1,9 +1,25 @@
 from model import common
-
+import torch
 import torch.nn as nn
 
 def make_model(args, parent=False):
     return RCAN(args)
+
+## Spatial Attention (SA) Layer
+class SALayer(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(SALayer, self).__init__()
+        ##
+        # feature channel downscale and upscale --> channel weight
+        self.conv_du = nn.Sequential(
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        return x
+
 
 ## Channel Attention (CA) Layer
 class CALayer(nn.Module):
@@ -24,23 +40,124 @@ class CALayer(nn.Module):
         y = self.conv_du(y)
         return x * y
 
+class CALayer1(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(CALayer1, self).__init__()
+        # global average pooling: feature --> point
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # feature channel downscale and upscale --> channel weight
+        self.conv_du = nn.Sequential(
+                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+                nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        y = self.max_pool(x)
+        y = self.conv_du(y)
+        return x * y
+
 class CALayer2(nn.Module):
     def __init__(self, channel, reduction=16):
         super(CALayer2, self).__init__()
         # global average pooling: feature --> point
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
         # feature channel downscale and upscale --> channel weight
-        self.fc = nn.Sequential(
-                nn.Linear(channel, channel // reduction),
+        self.conv_du = nn.Sequential(
+                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
                 nn.ReLU(inplace=True),
-                nn.Linear(channel // reduction, channel),
+                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
                 nn.Sigmoid()
         )
 
     def forward(self, x):
-        y = self.avg_pool(x)
-        y = self.fc(y)
+        y = 0.5 * (self.avg_pool(x) + self.max_pool(x))
+        y = self.conv_du(y)
         return x * y
+
+## Channel Attention (CA) Layer by max-average pooling
+class CALayer3(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(CALayer3, self).__init__()
+        # global average pooling: feature --> point
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # global maximum pooling: feature --> point
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # define alpha and beta variables
+        self.alpha = nn.Parameter(data=torch.Tensor([1]), requires_grad=True)
+        self.beta = nn.Parameter(data=torch.Tensor([1]), requires_grad=True)
+        # feature channel downscale and upscale --> channel weight
+        self.conv_du = nn.Sequential(
+                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+                nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        y = self.alpha * self.avg_pool(x) + self.beta * self.max_pool(x)
+        y = self.conv_du(y)
+        return x * y
+
+## Channel Attention (CA) Layer by mixed max-average pooling
+class CALayer4(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(CALayer4, self).__init__()
+        # global average pooling: feature --> point
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # global maximum pooling: feature --> point
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # define alpha and beta variables
+        self.alpha = nn.Parameter(data=torch.Tensor([1]), requires_grad=True)
+        # feature channel downscale and upscale --> channel weight
+        self.conv_du = nn.Sequential(
+                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+                nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        y = self.alpha * self.avg_pool(x) + (1 - self.alpha) * self.max_pool(x)
+        y = self.conv_du(y)
+        return x * y
+
+## Channel Attention (CA) Layer by gated mix max-average pooling
+class CALayer5(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(CALayer5, self).__init__()
+        # global average pooling: feature --> point
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # global maximum pooling: feature --> point
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # define alpha and beta variables
+        self.alpha = nn.Parameter(data=torch.Tensor(), requires_grad=True)
+        # feature channel downscale and upscale --> channel weight
+        self.conv_du = nn.Sequential(
+                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+                nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        y = self.alpha * self.avg_pool(x) + (1 - self.alpha) * self.max_pool(x)
+        y = self.conv_du(y)
+        return x * y
+
+class SpatialGate(nn.Module):
+    def __init__(self):
+        super(SpatialGate, self).__init__()
+        kernel_size = 7
+        self.compress = ChannelPool()
+        self.spatial = BasicConv(2, 1, kernel_size, stride=1, padding=(kernel_size-1) // 2, relu=False)
+    def forward(self, x):
+        x_compress = self.compress(x)
+        x_out = self.spatial(x_compress)
+        scale = F.sigmoid(x_out) # broadcasting
+        return x * scale
 
 ## Residual Channel Attention Block (RCAB)
 class RCAB(nn.Module):
