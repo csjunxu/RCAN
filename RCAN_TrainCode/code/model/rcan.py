@@ -1,27 +1,15 @@
 from model import common
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import pdb
+
 
 def make_model(args, parent=False):
     return RCAN(args)
 
-## Spatial Attention (SA) Layer
-class SALayer(nn.Module):
-    def __init__(self, channel, reduction=16):
-        super(SALayer, self).__init__()
-        ##
-        # feature channel downscale and upscale --> channel weight
-        self.conv_du = nn.Sequential(
-            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-            nn.Sigmoid()
-        )
-    def forward(self, x):
-        return x
 
-
-## Channel Attention (CA) Layer
+## Channel Attention (CA) Layer with global average pooling (original RCAN model)
 class CALayer(nn.Module):
     def __init__(self, channel, reduction=16):
         super(CALayer, self).__init__()
@@ -29,10 +17,10 @@ class CALayer(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         # feature channel downscale and upscale --> channel weight
         self.conv_du = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-                nn.Sigmoid()
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
@@ -40,6 +28,8 @@ class CALayer(nn.Module):
         y = self.conv_du(y)
         return x * y
 
+
+## Channel Attention (CA) Layer with global maximum pooling
 class CALayer1(nn.Module):
     def __init__(self, channel, reduction=16):
         super(CALayer1, self).__init__()
@@ -47,10 +37,10 @@ class CALayer1(nn.Module):
         self.max_pool = nn.AdaptiveMaxPool2d(1)
         # feature channel downscale and upscale --> channel weight
         self.conv_du = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-                nn.Sigmoid()
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
@@ -58,6 +48,8 @@ class CALayer1(nn.Module):
         y = self.conv_du(y)
         return x * y
 
+
+## Channel Attention (CA) Layer with global average + maximum pooling, with 50/50 percentage
 class CALayer2(nn.Module):
     def __init__(self, channel, reduction=16):
         super(CALayer2, self).__init__()
@@ -66,10 +58,10 @@ class CALayer2(nn.Module):
         self.max_pool = nn.AdaptiveMaxPool2d(1)
         # feature channel downscale and upscale --> channel weight
         self.conv_du = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-                nn.Sigmoid()
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
@@ -77,7 +69,8 @@ class CALayer2(nn.Module):
         y = self.conv_du(y)
         return x * y
 
-## Channel Attention (CA) Layer by max-average pooling
+
+## Channel Attention (CA) Layer by global average + maximum pooling, with learned percentages
 class CALayer3(nn.Module):
     def __init__(self, channel, reduction=16):
         super(CALayer3, self).__init__()
@@ -90,10 +83,10 @@ class CALayer3(nn.Module):
         self.beta = nn.Parameter(data=torch.Tensor([1]), requires_grad=True)
         # feature channel downscale and upscale --> channel weight
         self.conv_du = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-                nn.Sigmoid()
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
@@ -101,7 +94,8 @@ class CALayer3(nn.Module):
         y = self.conv_du(y)
         return x * y
 
-## Channel Attention (CA) Layer by mixed max-average pooling
+
+## Channel Attention (CA) Layer by global average + maximum pooling, with learned percentages summed to 1
 class CALayer4(nn.Module):
     def __init__(self, channel, reduction=16):
         super(CALayer4, self).__init__()
@@ -113,16 +107,89 @@ class CALayer4(nn.Module):
         self.alpha = nn.Parameter(data=torch.Tensor([1]), requires_grad=True)
         # feature channel downscale and upscale --> channel weight
         self.conv_du = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-                nn.Sigmoid()
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
         y = self.alpha * self.avg_pool(x) + (1 - self.alpha) * self.max_pool(x)
         y = self.conv_du(y)
         return x * y
+
+
+class GatedAttentionLayer2(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(GatedAttentionLayer2, self).__init__()
+        out_channel = channel
+        # global average pooling: feature --> point
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # global maximum pooling: feature --> point
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # kernel_size = nn.Parameter(data=torch.Tensor([1]), requires_grad=False)
+        self.mask = nn.Parameter(
+            torch.randn(channel, 1, 48, 48))  # nn.Parameter is special Variable
+        self.sigmoid = nn.Sigmoid()
+        self.conv_du = nn.Sequential(
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        # pdb.set_trace()
+        mask_c = F.conv2d(x, self.mask, groups=x.size()[1])
+        alpha = self.sigmoid(mask_c)
+        # print(alpha)
+        y = alpha * self.avg_pool(x) + (1 - alpha) * self.max_pool(x)
+        y = self.conv_du(y)
+        return x * y
+
+
+class GatedAttentionLayer(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(GatedAttentionLayer, self).__init__()
+        # global average pooling: feature --> point
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        # global maximum pooling: feature --> point
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # kernel_size = nn.Parameter(data=torch.Tensor([1]), requires_grad=False)
+        self.conv2d = nn.Conv2d(1, 1, 48, 48)
+        # self.mask = nn.Parameter(torch.randn(1, 1, 48, 48))
+        self.sigmoid = nn.Sigmoid()
+        self.conv_du = nn.Sequential(
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        pdb.set_trace()
+        channel = list(x.size())[1]
+        out_size = list(x.size())[2] // 2
+        batch_size = list(x.size())[0]
+        xc = []
+        for c in range(channel):
+            x_c = x[:, c, :, :] # c-th channel of x
+            x_c = torch.unsqueeze(x_c, 1)
+            x_c = self.conv2d(x_c)
+            # x_c = self.conv2d(x_c, self.mask)
+            xc.append(x_c)
+        pdb.set_trace()
+        output = xc[0]
+        # print(output)
+        for xx in xc[1:]:
+            output = torch.cat((output, xx), 1)
+        # output = torch.reshape(xc,(bs,size,out_size,out_size))
+        alpha = self.sigmoid(output)
+        # print(alpha)
+        y = alpha * self.avg_pool(x) + (1 - alpha) * self.max_pool(x)
+        y = self.conv_du(y)
+        return x * y
+
 
 ## Channel Attention (CA) Layer by gated mix max-average pooling
 class CALayer5(nn.Module):
@@ -132,38 +199,29 @@ class CALayer5(nn.Module):
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         # global maximum pooling: feature --> point
         self.max_pool = nn.AdaptiveMaxPool2d(1)
+        # global Lp pooling: feature --> point
+        self.lp_pool = nn.LPPool2d(2, 48)
         # define alpha and beta variables
         self.alpha = nn.Parameter(data=torch.Tensor(), requires_grad=True)
         # feature channel downscale and upscale --> channel weight
         self.conv_du = nn.Sequential(
-                nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
-                nn.Sigmoid()
+            nn.Conv2d(channel, channel // reduction, 1, padding=0, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channel // reduction, channel, 1, padding=0, bias=True),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
-        y = self.alpha * self.avg_pool(x) + (1 - self.alpha) * self.max_pool(x)
+        y = self.alpha * self.avg_pool(x) + (1 - self.alpha) * self.lp_pool(x)
         y = self.conv_du(y)
         return x * y
 
-class SpatialGate(nn.Module):
-    def __init__(self):
-        super(SpatialGate, self).__init__()
-        kernel_size = 7
-        self.compress = ChannelPool()
-        self.spatial = BasicConv(2, 1, kernel_size, stride=1, padding=(kernel_size-1) // 2, relu=False)
-    def forward(self, x):
-        x_compress = self.compress(x)
-        x_out = self.spatial(x_compress)
-        scale = F.sigmoid(x_out) # broadcasting
-        return x * scale
 
 ## Residual Channel Attention Block (RCAB)
 class RCAB(nn.Module):
     def __init__(
-        self, conv, n_feat, kernel_size, reduction,
-        bias=True, bn=False, act=nn.ReLU(True), res_scale=1):
+            self, conv, n_feat, kernel_size, reduction,
+            bias=True, bn=True, act=nn.ReLU(True), res_scale=1):
 
         super(RCAB, self).__init__()
         modules_body = []
@@ -171,15 +229,16 @@ class RCAB(nn.Module):
             modules_body.append(conv(n_feat, n_feat, kernel_size, bias=bias))
             if bn: modules_body.append(nn.BatchNorm2d(n_feat))
             if i == 0: modules_body.append(act)
-        modules_body.append(CALayer2(n_feat, reduction))
+        modules_body.append(GatedAttentionLayer(n_feat, reduction))
         self.body = nn.Sequential(*modules_body)
         self.res_scale = res_scale
 
     def forward(self, x):
         res = self.body(x)
-        #res = self.body(x).mul(self.res_scale)
+        # res = self.body(x).mul(self.res_scale)
         res += x
         return res
+
 
 ## Residual Group (RG)
 class ResidualGroup(nn.Module):
@@ -188,7 +247,7 @@ class ResidualGroup(nn.Module):
         modules_body = []
         modules_body = [
             RCAB(
-                conv, n_feat, kernel_size, reduction, bias=True, bn=False, act=nn.ReLU(True), res_scale=1) \
+                conv, n_feat, kernel_size, reduction, bias=True, bn=True, act=nn.ReLU(True), res_scale=1) \
             for _ in range(n_resblocks)]
         modules_body.append(conv(n_feat, n_feat, kernel_size))
         self.body = nn.Sequential(*modules_body)
@@ -198,24 +257,25 @@ class ResidualGroup(nn.Module):
         res += x
         return res
 
+
 ## Residual Channel Attention Network (RCAN)
 class RCAN(nn.Module):
     def __init__(self, args, conv=common.default_conv):
         super(RCAN, self).__init__()
-        
+
         n_resgroups = args.n_resgroups
         n_resblocks = args.n_resblocks
         n_feats = args.n_feats
         kernel_size = 3
-        reduction = args.reduction 
+        reduction = args.reduction
         scale = args.scale[0]
         act = nn.ReLU(True)
-        
+
         # RGB mean for DIV2K
         rgb_mean = (0.4488, 0.4371, 0.4040)
         rgb_std = (1.0, 1.0, 1.0)
         self.sub_mean = common.MeanShift(args.rgb_range, rgb_mean, rgb_std)
-        
+
         # define head module
         modules_head = [conv(args.n_colors, n_feats, kernel_size)]
 
@@ -248,7 +308,7 @@ class RCAN(nn.Module):
         x = self.tail(res)
         x = self.add_mean(x)
 
-        return x 
+        return x
 
     def load_state_dict(self, state_dict, strict=False):
         own_state = self.state_dict()
