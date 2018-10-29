@@ -77,7 +77,7 @@ For more informaiton, please refer to [EDSR(PyTorch)](https://github.com/thstkdg
     # No self-ensemble: RCAN
     # BI degradation model, X2, X3, X4, X8
     # RCAN_BIX2
-    python main.py --data_test MyImage --scale 2 --model RCAN --n_resgroups 10 --n_resblocks 20 --n_feats 64 --pre_train ../model/RCAN_BIX2.pt --test_only --save_results --chop --save 'RCAN' --testpath /media/yulun/Disk10T/datasets/super-resolution/LRBI --testset Set5
+    python main.py --data_test MyImage --scale 2 --model RCAN --n_resgroups 10 --n_resblocks 20 --n_feats 64 --pre_train ../experiment/RCAN_BN_GatedAM_BIX2_G10R20P48Ep200/model/model_best.pt --test_only --save_results --chop --save 'RCAN_BN_GatedAM' --testpath ../../RCAN_TestCode/LR/LRBI --testset Set5
     # RCAN_BIX3
     python main.py --data_test MyImage --scale 3 --model RCAN --n_resgroups 10 --n_resblocks 20 --n_feats 64 --pre_train ../model/RCAN_BIX3.pt --test_only --save_results --chop --save 'RCAN' --testpath /media/yulun/Disk10T/datasets/super-resolution/LRBI --testset Set5
     # RCAN_BIX4
