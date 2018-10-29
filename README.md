@@ -46,7 +46,7 @@ For more informaiton, please refer to [EDSR(PyTorch)](https://github.com/thstkdg
     ```bash
     # BI, scale 2, 3, 4, 8
     # RCAN_BIX2_G10R20P48, input=48x48, output=96x96
-    python main.py --model RCAN_BN_LM_Init_Avg_GatedMix --save RCAN_BN_LM_Init_Avg_GatedMix_BIX2_G10R20P48Ep200 --scale 2 --n_resgroups 10 --n_resblocks 20 --n_feats 64  --reset --chop --save_results --print_model --patch_size 96 --mask_height 24 --mask_width 24
+
 
     # RCAN_BIX3_G10R20P48, input=48x48, output=144x144
     python main.py --model RCAN --save RCAN_BIX3_G10R20P48 --scale 3 --n_resgroups 10 --n_resblocks 20 --n_feats 64  --reset --chop --save_results --print_model --patch_size 144 --pre_train ../experiment/model/RCAN_BIX2.pt
